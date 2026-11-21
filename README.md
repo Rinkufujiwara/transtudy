@@ -55,15 +55,16 @@ sequenceDiagram
   participant S as Server
   participant C as Capture Agent
   participant T as Tutor Agent
-  U->>S: "bag" (voice or text)
-  S->>S: detect language, translate (Cloud Translation), show "bolsa" at once
-  S->>C: <user_utterance>bag</user_utterance>
-  C->>S: find_similar_entries -> exact: bolsa (2x)
-  C->>S: bump_lookup_count -> 3x, became_weak = true
-  C->>S: request_tutor_review(bolsa, "looked up 3 times")
-  S->>T: <today_review> 7 words, <review_candidate> bolsa, <handoff_note>
-  T->>S: save_example + update_today_review(add bolsa, drop la cuenta, "remembered twice in a row")
-  S-->>U: "Tutor Agent: added bolsa; dropped la cuenta, ..."
+  U->>S: says "bag" (voice or text)
+  S->>S: detect language and translate with Cloud Translation
+  S-->>U: shows "bolsa" at once
+  S->>C: user_utterance "bag" (wrapped as data)
+  C->>S: find_similar_entries returns bolsa (2 lookups)
+  C->>S: bump_lookup_count makes it 3 lookups (became weak)
+  C->>S: request_tutor_review(bolsa) handoff
+  S->>T: today_review (7 words) + review_candidate bolsa + handoff_note
+  T->>S: save_example + update_today_review (add bolsa and drop la cuenta)
+  S-->>U: Tutor Agent - added bolsa and dropped la cuenta
 ```
 
 The translation never waits for an LLM. Gemini is called only for decisions: 2 calls per text lookup (search → save/count), 1 per lesson answer, 1 per background review.
