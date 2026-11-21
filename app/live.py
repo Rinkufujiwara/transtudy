@@ -113,6 +113,7 @@ async def _real_live(s: Session, audio_q: asyncio.Queue, stopped: asyncio.Event,
 
             async def recv():
                 while True:
+                  try:
                     async for msg in session.receive():
                         sc = msg.server_content
                         if not sc:
@@ -120,6 +121,8 @@ async def _real_live(s: Session, audio_q: asyncio.Queue, stopped: asyncio.Event,
                         fin = sc.input_transcription.text if sc.input_transcription and sc.input_transcription.text else None
                         inter = sc.interim_input_transcription.text if sc.interim_input_transcription and sc.interim_input_transcription.text else None
                         s.on_text(fin, inter)
+                  except Exception:  # noqa: BLE001  (Live closes with code 1000 after audio_stream_end)
+                    return
             pt, rt = asyncio.create_task(pump()), asyncio.create_task(recv())
             await stopped.wait()
             await asyncio.sleep(3)  # finalisation window is handled by the caller; keep the session open
@@ -169,6 +172,7 @@ async def handle(ws: WebSocket):
             await asyncio.sleep(0.05)
         text = s.full
         if failed.is_set() or not text or len(text) > config.LIMITS["max_text_chars"]:
+            log.warning("live fallback: reason=%s", "live_error" if failed.is_set() else ("empty_text" if not text else "too_long"))
             await s.send({"type": "fallback"})
             return
         pre = s.pre_stop_text
