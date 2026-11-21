@@ -1,0 +1,166 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Transtudy</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap">
+<link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+<div id="frame" class="frame">
+  <main id="screens">
+    <!-- HOME -->
+    <section id="home" class="screen active" data-state="idle">
+      <header class="lt-header">
+        <h1 class="large-title">Transtudy</h1>
+        <div class="hdr-btns">
+          <button class="tap44" id="btnLog" aria-label="Agent log"><span class="circle-btn" data-icon="ellipsis"></span></button>
+          <button class="tap44" id="btnMenu" aria-label="Menu"><span class="circle-btn" data-icon="menu"></span></button>
+          <button class="tap44 hidden" id="btnClose" aria-label="Close"><span class="circle-btn" data-icon="x"></span></button>
+        </div>
+      </header>
+      <div id="carouselZone" class="carousel-zone">
+        <div id="carousel" class="carousel" tabindex="0" aria-label="Shortcuts"></div>
+      </div>
+      <div id="liveText" class="live-text" aria-live="polite"></div>
+      <div id="result" class="result">
+        <div id="tags" class="tags"></div>
+        <div id="trans" class="trans"></div>
+        <div id="other" class="other"></div>
+        <div id="resultBtns" class="result-btns">
+          <button class="round44" id="btnListen" aria-label="Listen" data-icon="volume-2"></button>
+          <button class="round44" id="btnShow" aria-label="Show" data-icon="scan"></button>
+        </div>
+        <div id="tutorLine" class="tutor-line hidden"></div>
+      </div>
+      <div id="rings" class="rings"><span class="ring r2"></span><span class="ring r1"></span></div>
+      <button id="mic" class="mic" aria-label="Tap to speak"><span class="mic-icon" data-icon="mic"></span><span class="stop-sq"></span></button>
+      <div id="micLine" class="mic-line">Tap to speak</div>
+      <form id="inputRow" class="input-row" autocomplete="off">
+        <input id="textIn" class="search-field" maxlength="300" placeholder="What's new today?" aria-label="What's new today?">
+        <button type="button" class="tap44" id="btnPaste" aria-label="Paste"><span class="circle-btn" data-icon="clipboard-paste"></span></button>
+      </form>
+    </section>
+
+    <!-- WORDLIST -->
+    <section id="wordlist" class="screen scroll">
+      <div class="collapse-bar"><span>Wordlist</span></div>
+      <header class="lt-header"><h1 class="large-title">Wordlist</h1></header>
+      <div class="pad16">
+        <label class="search-wrap"><span data-icon="search"></span><input id="wlSearch" class="search-input" placeholder="Search" aria-label="Search"></label>
+        <div id="wlToggles" class="toggles"></div>
+      </div>
+      <div id="wlList" class="list"></div>
+      <div id="wlEmpty" class="empty hidden">Nothing here yet.</div>
+    </section>
+
+    <!-- LESSON -->
+    <section id="lesson" class="screen scroll">
+      <div class="collapse-bar"><span>Lesson</span></div>
+      <header class="lt-header"><h1 class="large-title">Lesson</h1></header>
+      <div class="pad16">
+        <h2 class="section-h">What to practise</h2>
+        <div id="lsToggles" class="toggles"></div>
+        <button id="btnStartLesson" class="primary-btn">Start lesson</button>
+        <h2 class="section-h">Recent</h2>
+      </div>
+      <div id="recentList" class="list"></div>
+    </section>
+
+    <!-- WORDBOOK -->
+    <section id="wordbook" class="screen">
+      <header class="lt-header"><h1 class="large-title">Wordbook</h1></header>
+      <div id="shelf" class="shelf"></div>
+    </section>
+  </main>
+
+  <nav id="tabbar" class="tabbar">
+    <button data-tab="home" aria-label="Home" class="active"></button>
+    <button data-tab="wordlist" aria-label="Wordlist"></button>
+    <button data-tab="lesson" aria-label="Lesson"></button>
+    <button data-tab="wordbook" aria-label="Wordbook"></button>
+  </nav>
+
+  <!-- open book (fades) -->
+  <div id="book" class="book-layer" inert>
+    <div class="topbar">
+      <button class="back" id="bookBack"><span data-icon="chevron-left"></span>Back</button>
+      <div class="topbar-title" id="bookTitle"></div>
+      <button class="tap44 gear" id="bookGear" aria-label="Wordbook settings" data-icon="settings"></button>
+    </div>
+    <div class="book-body">
+      <div id="sheetToggle"></div>
+      <div id="paperWrap" class="paper-wrap">
+        <div id="paper" class="paper"></div>
+        <div id="redSheet" class="red-sheet hidden"><div class="red-edge"></div><button id="redHandle" class="red-handle"><span data-icon="grip-vertical"></span>Red sheet</button></div>
+      </div>
+      <div class="page-ctrl">
+        <button class="round44" id="pgPrev" aria-label="Previous page" data-icon="chevron-left"></button>
+        <span id="pgNum">1 / 1</span>
+        <button class="round44" id="pgNext" aria-label="Next page" data-icon="chevron-right"></button>
+      </div>
+    </div>
+  </div>
+
+  <!-- right-side panels -->
+  <div id="settingsPanel" class="panel" inert>
+    <div class="topbar"><button class="back" data-close="settingsPanel"><span data-icon="chevron-left"></span>Back</button><div class="topbar-title">Settings</div><span></span></div>
+    <div class="panel-body">
+      <p class="subtitle">No account needed. Everything stays on this computer.</p>
+      <div class="group"><div class="grow-row"><span>Native language</span><span class="muted">English</span></div></div>
+      <div class="group-label">Learning language</div>
+      <div class="group" id="langGroup"></div>
+    </div>
+  </div>
+  <div id="wbSettingsPanel" class="panel" inert>
+    <div class="topbar"><button class="back" data-close="wbSettingsPanel"><span data-icon="chevron-left"></span>Back</button><div class="topbar-title">Wordbook settings</div><span></span></div>
+    <div class="panel-body">
+      <div class="group-label">Order</div>
+      <div class="group" id="orderGroup"></div>
+    </div>
+  </div>
+
+  <!-- full-screen sheets -->
+  <div id="backdrop" class="backdrop"></div>
+  <div id="logSheet" class="sheet" inert>
+    <button class="grabber" aria-label="Close"></button>
+    <div class="sheet-body">
+      <h2 class="sheet-title">Agent log</h2>
+      <p class="subtitle">Every tool call, checked against policy.yaml before it runs. Newest first.</p>
+      <div id="policyTable" class="policy-table"></div>
+      <div id="logRows" class="log-rows"></div>
+    </div>
+  </div>
+  <div id="cardSheet" class="sheet" inert>
+    <button class="grabber" aria-label="Close"></button>
+    <div class="sheet-body">
+      <h2 class="sheet-title" id="lessonTitle"></h2>
+      <div class="muted" id="lessonCount"></div>
+      <div id="lessonMain">
+        <button id="flash" class="flash"><div id="flashReason" class="flash-reason hidden"></div><div id="flashText" class="flash-text"></div><div id="flashHint" class="muted small">Tap to flip</div></button>
+        <div class="pair" id="answerPair">
+          <button class="sec-btn" id="btnForgot">Forgot</button>
+          <button class="sec-btn" id="btnRemembered">Remembered</button>
+        </div>
+      </div>
+      <div id="lessonEnd" class="lesson-end hidden">
+        <h2 class="sheet-title">Lesson complete</h2>
+        <div id="lessonScore" class="score"></div>
+        <button class="primary-btn" id="btnLessonDone">Done</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- context menu, alert, show, loader, toast -->
+  <div id="ctx" class="ctx" inert><div class="ctx-inner"><div id="ctxPreview" class="ctx-preview"></div><div id="ctxMenu" class="ctx-menu"></div></div></div>
+  <div id="alert" class="alert-layer" inert><div class="alert"><div class="alert-title">Delete this entry?</div><div class="alert-btns"><button id="alertCancel">Cancel</button><button id="alertDelete" class="destructive">Delete</button></div></div></div>
+  <div id="showLayer" class="show-layer" inert><div id="showText" class="show-text"></div></div>
+  <div id="loader" class="loader" inert><div class="pb-track"><div id="pbBar" class="pb-bar"></div></div></div>
+  <div id="toast" class="toast"></div>
+</div>
+<script src="/static/icons.js"></script>
+<script src="/static/app.js"></script>
+</body>
+</html>

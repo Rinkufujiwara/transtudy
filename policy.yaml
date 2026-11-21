@@ -1,0 +1,55 @@
+# Transtudy policy-as-code.
+# Every tool call made by an agent is checked against this file in
+# ADK's before_tool_callback BEFORE the tool runs. Violations are not
+# executed and are written to logs/audit.jsonl as "blocked".
+
+agents:
+  capture_agent:
+    description: Files each lookup into the wordbook (new entry or +1 lookup).
+    tools:
+      - find_similar_entries   # read only
+      - save_entry             # insert only, never overwrite
+      - bump_lookup_count      # lookup_count + 1 only
+      - request_tutor_review   # hand a word that just became weak to the Tutor
+  tutor_agent:
+    description: Writes example sentences and keeps today's review list.
+    tools:
+      - update_today_review    # add the given candidate, optionally drop one word
+      - set_today_review       # rebuild the list for a new day only
+      - record_result          # lesson score fields only
+      - get_example_candidates # read only, server-chosen words
+      - save_example           # fill an EMPTY example field only
+
+# No agent has a delete, settings or code-execution tool.
+# Deleting is a human-only action (confirm dialog -> DELETE /api/entries/{id}).
+
+limits:
+  max_text_chars: 300
+  max_audio_seconds: 15
+  max_audio_bytes: 1048576
+  requests_per_minute: 20
+  max_note_chars: 80
+  max_example_chars: 140
+  max_handoff_reason_chars: 120
+  max_why_chars: 200
+  max_today_review: 7
+  max_kept_word_chars: 40
+  max_requeue_per_card: 1
+  max_example_batch: 8
+
+languages:
+  native: [en]
+  target: [es, de]
+
+# Text written by an agent (notes, examples, reasons) must be plain text.
+forbidden_in_agent_text: ["<", ">", "://"]
+
+# Delimiter tags used to wrap data. User input must never contain them.
+data_tags:
+  - user_utterance
+  - wordbook_data
+  - lesson_filters
+  - handoff_note
+  - today_review
+  - review_candidate
+  - review_candidates
