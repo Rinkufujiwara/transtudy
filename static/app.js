@@ -324,7 +324,7 @@ function renderTags(cap, res) {
   if (res.action === 'counted') tags.push(['Not saved again', 'nsa']);
   tags.forEach(([label, cls]) => { const s = el('span', 'tag ' + (cls.includes('weak') ? 'weak' : ''), label); s.dataset.k = cls; box.append(s); });
   const fits = () => box.scrollWidth <= box.clientWidth + 0.5;
-  for (const lvl of ['', 'l1', 'l2', 'l3']) { box.className = 'tags ' + lvl; if (fits()) return; }
+  for (const lvl of ['', 'l1', 'l2', 'l3', 'l4']) { box.className = 'tags ' + lvl; if (fits()) return; }
   for (const k of ['nsa', 'first']) { const n = box.querySelector(`[data-k="${k}"]`); if (n) { n.remove(); if (fits()) return; } }
 }
 function fitResult() {
@@ -377,7 +377,7 @@ $('mic').addEventListener('click', () => { if (REC.on) stopRec(); else if (S.sta
 function renderLive(finalText, interim) {
   const box = $('liveText'); box.textContent = ''; const inner = el('span', 'live-inner');
   inner.append(document.createTextNode(finalText)); if (interim) inner.append(el('span', 'interim', interim)); inner.append(el('span', 'caret'));
-  box.append(inner);
+  box.append(inner); box.scrollTop = box.scrollHeight;
 }
 async function startRec() {
   if (S.state === 'result') toIdle();
