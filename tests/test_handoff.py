@@ -34,6 +34,12 @@ def test_third_lookup_hands_over_and_tutor_keeps_seven():
         return res
     res = run(go())
     assert res["became_weak"] and res["handed_to_tutor"] and res["lookup_count"] == 3
+    from app import a2ui
+    card = a2ui.card_for(bolsa)["card"]   # dropping a word waits for the user (policy.yaml approval_required)
+    assert card and card["card"] == "proposal"
+    assert bolsa not in [r["entry_id"] for r in db.today_active(DAY)]
+    pending, _ = a2ui.STORE.take(card["card_id"], "approve")
+    a2ui._apply_proposal(pending.facts, pending.facts["drop"])
     active = [r["entry_id"] for r in db.today_active(DAY)]
     assert bolsa in active and len(active) == 7
     e = db.get_entry(bolsa)

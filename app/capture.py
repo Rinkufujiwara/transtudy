@@ -4,7 +4,7 @@ import logging
 import secrets
 import time
 
-from . import agents, audit, config, db, speech, translate
+from . import a2ui, agents, audit, config, db, speech, translate
 
 log = logging.getLogger("transtudy.capture")
 CAPTURE_TTL = 600
@@ -96,6 +96,7 @@ async def commit(capture_id: str, day: str) -> dict:
         "first_time": bool(ctx.saved_id), "handed_to_tutor": ctx.handed_off, "review_updating": False,
         "granularity": e["granularity"], "direction": e["direction"],
     }
+    out["card"] = a2ui.capture_card_for(ctx, entry_id, e)   # Capture Agent's A2UI card
     if e["granularity"] == "word":
         if ctx.handed_off:
             audit.write("server", "handoff", {"entry_id": entry_id}, "info",

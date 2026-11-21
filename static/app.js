@@ -298,6 +298,10 @@ async function showResult(cap) {
     else micLine('Counted', 'status');
     if (res.handed_to_tutor) watchTutor(res.entry_id, token);
     if (res.review_updating) pollReview();
+    if (res.card) TranstudyCards.show(res.card, frame, { onDone: (r) => {  // Capture Agent's A2UI card
+      if (r && r.english && token === resultToken) { $('trans').textContent = r.english; fitResult(); }
+      if (r && r.message) toast(r.message);
+    } });
   } catch (e) { if (token === resultToken) micLine(e.message, 'status'); }
   finally { S.busy = false; state.pending = false; }
 }
@@ -348,13 +352,21 @@ async function watchTutor(entryId, token) {
     await sleep(500);
   }
   if (token !== resultToken || S.state !== 'result') return;
+  try {  // Tutor Agent's proposal waits for the user's approval (policy.yaml approval_required)
+    const c = await api(`/api/cards/for/${entryId}`);
+    if (c.card) {
+      line.lastChild.textContent = 'Tutor Agent proposes a change';
+      TranstudyCards.show(c.card, frame, { onDone: (r) => { line.lastChild.textContent = 'Tutor Agent: ' + ((r && r.why) || (r && r.message) || 'done'); fitResult(); } });
+      return;
+    }
+  } catch (e) { /* no card: show the note as before */ }
   try { const e = await api(`/api/entries/${entryId}`); line.lastChild.textContent = 'Tutor Agent: ' + (e.tutor_note || 'reviewed'); fitResult(); } catch (e) { /* ignore */ }
 }
 async function undo() {
   const id = S.commit && S.commit.entry_id; if (!id) return;
   try { await api(`/api/entries/${id}`, { method: 'DELETE' }); toIdle(); } catch (e) { toast(e.message); }
 }
-function toIdle() { resultToken++; setHome('idle'); micLine('Tap to speak', 'tap'); loadHome(); }
+function toIdle() { resultToken++; TranstudyCards.close(); setHome('idle'); micLine('Tap to speak', 'tap'); loadHome(); }
 $('btnClose').addEventListener('click', toIdle);
 function learnText() { const c = S.capture; if (!c) return ''; return c.source_lang === 'en' ? c.translated_text : c.source_text; }
 $('btnListen').addEventListener('click', () => {

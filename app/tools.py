@@ -84,6 +84,28 @@ def request_tutor_review(entry_id: int, reason: str, why: str, tool_context) -> 
     return {"handed_over": True}
 
 
+def propose_extraction(texts: list[str], kinds: list[str], notes: list[str], why: str, tool_context) -> dict:
+    """SENTENCES ONLY. Up to 3 things worth learning from the learning-language sentence, shown to the
+    learner as a card. texts: copied exactly from <learning_sentence> (whole words). kinds: "word",
+    "expression" or "grammar". notes: a short English gloss (max 60 chars); for grammar, one allowed
+    label. Saves nothing: the learner ticks what to keep."""
+    from . import cards
+    ctx = ctx_of(tool_context)
+    ctx.extraction = cards.items_from_lists({"texts": texts, "kinds": kinds, "notes": notes})
+    _skip(tool_context)
+    return {"shown_to_user": True}
+
+
+def ask_meaning(meanings: list[str], why: str, tool_context) -> dict:
+    """A SINGLE learning-language WORD with clearly different everyday meanings (e.g. banco: bank /
+    bench). meanings: 2 or 3 short English meanings, most common first. Shown to the learner, who taps
+    the one they meant. Changes nothing by itself."""
+    ctx = ctx_of(tool_context)
+    ctx.meanings = [" ".join(str(m).split()) for m in meanings]
+    _skip(tool_context)
+    return {"shown_to_user": True}
+
+
 # ---------------- Tutor Agent ----------------
 def update_today_review(add_entry_id: int, drop_entry_id: int | None, why: str, tool_context) -> dict:
     """Put the candidate on today's review list. drop_entry_id: one word to take off instead, or null
@@ -162,7 +184,8 @@ def save_example(entry_id: int, example_target: str, example_english: str, why: 
     return {"saved": True}
 
 
-CAPTURE_TOOLS = [find_similar_entries, save_entry, bump_lookup_count, request_tutor_review]
+CAPTURE_TOOLS = [find_similar_entries, save_entry, bump_lookup_count, request_tutor_review, propose_extraction,
+                 ask_meaning]
 TUTOR_TOOLS = [update_today_review, set_today_review, record_result, get_example_candidates, save_example]
 ALL = {f.__name__: f for f in CAPTURE_TOOLS + TUTOR_TOOLS}
 

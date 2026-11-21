@@ -11,7 +11,7 @@ from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
-from . import agents, audit, capture, config, db, live, policy, speech, translate, usage
+from . import a2ui, agents, audit, capture, config, db, live, policy, speech, translate, usage
 from .policy import RunCtx
 
 STATIC = config.ROOT / "static"
@@ -26,6 +26,7 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(title="Transtudy", lifespan=lifespan)
+app.include_router(a2ui.router)   # A2UI-style cards: POST /api/cards/{id}/action, GET /api/cards/for/{entry_id}
 
 
 @app.middleware("http")

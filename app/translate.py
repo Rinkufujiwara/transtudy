@@ -11,9 +11,9 @@ FAKE = {
     ("en", "es"): {"receipt": "recibo", "bag": "bolsa", "the bill": "la cuenta", "hello": "hola",
                    "can you wrap it for me?": "¿Me lo puede envolver?", "card": "tarjeta"},
     ("es", "en"): {"recibo": "receipt", "bolsa": "bag", "¿quiere que se lo envuelva?": "Do you want me to wrap it?",
-                   "envuelva": "wrap", "la cuenta": "the bill", "tarjeta": "card"},
+                   "envuelva": "wrap", "la cuenta": "the bill", "tarjeta": "card", "banco": "bank"},
 }
-ES_HINTS = set("el la los las que se lo quiere de por favor gracias hola recibo bolsa cuenta tarjeta envuelva cómo dónde estás".split())
+ES_HINTS = set("el la los las que se lo quiere de por favor gracias hola recibo bolsa cuenta tarjeta envuelva cómo dónde estás banco".split())
 DE_HINTS = set("der die das ist ich und nicht danke bitte quittung tasche".split())
 
 

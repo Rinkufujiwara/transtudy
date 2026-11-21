@@ -314,3 +314,6 @@ button:active:not(:disabled) { transform: scale(0.97); }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { transition-duration: 0.01ms !important; animation-duration: 0.01ms !important; }
 }
+
+/* Agent log: a call held for the user's approval (A2UI card) */
+.pill.held { background: #5856D6; }

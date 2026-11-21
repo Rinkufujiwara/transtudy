@@ -19,7 +19,7 @@ from google.adk.runners import Runner
 from google.adk.sessions import InMemorySessionService
 from google.genai import types
 
-from . import audit, config, db, policy, tools, usage
+from . import a2ui, audit, cards, config, db, policy, tools, usage
 from .policy import RunCtx
 
 log = logging.getLogger("transtudy.agents")
@@ -43,6 +43,18 @@ Steps:
    words such as receipt/recibo or bag/bolsa.
 4. If bump_lookup_count returns became_weak=true, call request_tutor_review(entry_id, reason)
    with a short plain-text reason (e.g. "looked up 3 times today; now a weak word").
+5. If Kind is sentence: in the SAME response as save_entry / bump_lookup_count, you may also call
+   propose_extraction with up to 3 things worth learning from <learning_sentence> (texts copied
+   exactly, whole words, in order): kinds "word", "expression" (a useful chunk, e.g. "¿Quiere que")
+   or "grammar". A single content word (verb, noun, adjective, adverb) is ALWAYS "word", even when it
+   is conjugated; put the form in its note (e.g. "wrap (subjunctive)"). "grammar" is only for a pattern
+   of small function words with no meaning alone (e.g. "se lo").
+   notes: a short English gloss (max 60 chars); for grammar the note must be one of:
+   two pronouns together, subjunctive, reflexive verb, polite question, past tense, imperfect tense, future tense, conditional, ser vs estar, por vs para, gustar-type verb, object pronoun, gender agreement, separable verb, dative case, word order.
+   Skip it for very easy or very short sentences. The learner decides what to keep.
+6. If Kind is word, the input language is the learning language, and the word has clearly different
+   everyday meanings (e.g. banco: bank / bench), call ask_meaning in the SAME response as save_entry
+   with 2 or 3 short English meanings, most common first. Do not call it for a word with one main meaning.
 Every tool call needs `why`: one short plain line. You never write translations.
 """
 
@@ -95,6 +107,9 @@ def guard_callback(tool, args, tool_context):
     ok, reason = policy.guarded(tool_context.agent_name, tool.name, args, ctx)
     if not ok:
         return {"error": f"blocked by policy: {reason}"}
+    held = a2ui.hold_if_needed(tool.name, args, ctx)   # policy.yaml approval_required
+    if held is not None:
+        return held
     return None
 
 
@@ -175,7 +190,9 @@ async def run_capture(cap: dict) -> RunCtx:
                granularity=cap["granularity"], direction=cap["direction"], translation=cap)
     prompt = (f"<user_utterance>{cap['source_text']}</user_utterance>\n"
               f"Input language: {cap['source_lang']}. Learning language: {cap['target_lang']}. "
-              f"Kind: {cap['granularity']}. File it now.")
+              f"Kind: {cap['granularity']}. File it now."
+              + (f"\n<learning_sentence>{cap['target_text']}</learning_sentence>"
+                 if cap["granularity"] == "sentence" else ""))
     try:
         await _run(ctx, "capture", prompt)
     except Exception as e:  # noqa: BLE001
@@ -203,7 +220,7 @@ def _fallback_drop(rows: list[dict]) -> int | None:
 async def run_review(entry_id: int, day: str, handoff: str = "") -> RunCtx:
     e = db.get_entry(entry_id)
     allow_example = bool(e and not e["example_target"] and "<" not in e["target_text"] and ">" not in e["target_text"])
-    ctx = _new("review", "tutor_agent", day=day, candidate_id=entry_id,
+    ctx = _new("review", "tutor_agent", day=day, candidate_id=entry_id, handoff=handoff,
                example_ids={entry_id} if allow_example else set(), target_lang=e["target_lang"])
     rows = _review_rows(day)
     cand = {"entry_id": entry_id, "word": e["target_text"], "english": e["english_text"], "lookups": e["lookup_count"],
@@ -226,14 +243,18 @@ async def run_review(entry_id: int, day: str, handoff: str = "") -> RunCtx:
             drop = _fallback_drop(rows)
         dropped = next((r["word"] for r in rows if r["entry_id"] == drop), None)
         why = f"added {e['target_text']}" + (f"; dropped {dropped}, remembered most in a row" if dropped else "; kept all")
-        tools.RUNS[ctx.run_id] = ctx
-        try:
-            fake_tc = _FakeTC(ctx, "tutor_agent")
-            tools.update_today_review(entry_id, drop, why, fake_tc)
-        finally:
-            tools.RUNS.pop(ctx.run_id, None)
-        audit.write("server", "update_today_review", {"add_entry_id": entry_id, "drop_entry_id": drop}, "fallback",
-                    "Tutor Agent did not update the list; server rule applied", why)
+        if handoff and drop is not None:
+            # a hand-off that drops a word waits for the user, also when the server rule decided it
+            a2ui.make_proposal(ctx, entry_id, drop, why, "server")
+        else:
+            tools.RUNS[ctx.run_id] = ctx
+            try:
+                fake_tc = _FakeTC(ctx, "tutor_agent")
+                tools.update_today_review(entry_id, drop, why, fake_tc)
+            finally:
+                tools.RUNS.pop(ctx.run_id, None)
+            audit.write("server", "update_today_review", {"add_entry_id": entry_id, "drop_entry_id": drop}, "fallback",
+                        "Tutor Agent did not update the list; server rule applied", why)
     with db.conn() as c:
         c.execute("UPDATE entries SET example_checked = 1 WHERE id = ?", (entry_id,))
     return ctx
@@ -324,6 +345,9 @@ def _call(ctx: RunCtx, name: str, **args):
     ok, reason = policy.guarded(ctx.agent, name, args, ctx)
     if not ok:
         return {"error": reason}
+    held = a2ui.hold_if_needed(name, args, ctx)
+    if held is not None:
+        return held
     return tools.ALL[name](**args, tool_context=tc)
 
 
@@ -339,6 +363,19 @@ async def _fake(ctx: RunCtx) -> None:
                       why="hand the new weak word to the Tutor")
         else:
             _call(ctx, "save_entry", source_text=ctx.utterance, note="", why="new entry")
+        if ctx.granularity == "sentence":
+            words = [w.strip("¿¡?!.,;:") for w in (ctx.translation.get("target_text") or "").split()]
+            words = [w for w in words if w]
+            texts, kinds, notes = [], [], []
+            if words:
+                texts.append(max(words, key=len)); kinds.append("word"); notes.append("a key word")
+            if len(words) >= 3 and " ".join(words[:2]) not in texts:
+                texts.append(" ".join(words[:2])); kinds.append("expression"); notes.append("a useful phrase")
+            if texts:
+                _call(ctx, "propose_extraction", texts=texts, kinds=kinds, notes=notes, why="worth learning")
+        senses = {"banco": ["bank", "bench"], "tarjeta": ["card", "business card"], "cola": ["queue", "tail", "glue"]}
+        if ctx.granularity == "word" and ctx.saved_id and db.normalize(ctx.utterance) in senses:
+            _call(ctx, "ask_meaning", meanings=senses[db.normalize(ctx.utterance)], why="several everyday meanings")
     elif ctx.task == "review":
         e = db.get_entry(ctx.candidate_id)
         if ctx.candidate_id in ctx.example_ids:

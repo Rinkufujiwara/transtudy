@@ -5,7 +5,7 @@ ADK's before_tool_callback, by the red-team script and by /api/demo/guard-check.
 """
 from dataclasses import dataclass, field
 
-from . import audit, config, db
+from . import audit, cards, config, db
 
 POLICY = config.POLICY
 LIM = config.LIMITS
@@ -29,6 +29,8 @@ class RunCtx:
     bumped: dict | None = None
     handed_off: bool = False
     handoff_reason: str = ""
+    extraction: list | None = None   # checked items from propose_extraction (A2UI card)
+    meanings: list | None = None     # meanings from ask_meaning (A2UI card)
     # tutor
     day: str = ""
     candidate_id: int | None = None
@@ -38,6 +40,7 @@ class RunCtx:
     example_ids: set = field(default_factory=set)
     examples_written: int = 0
     update_why: str = ""
+    handoff: str = ""                # set when the Capture Agent handed this word over
     # lesson result
     result_entry_id: int | None = None
     remembered: bool | None = None
@@ -112,6 +115,25 @@ def check(agent: str, tool: str, args: dict, ctx: RunCtx) -> tuple[bool, str]:
         if len(reason) > LIM["max_handoff_reason_chars"] or not _plain(reason):
             return False, "reason must be plain text, max 120 chars"
         return True, "handoff of a word that just became weak"
+
+    if tool == "propose_extraction":
+        if ctx.task not in ("capture", "guard_check"):
+            return False, "propose_extraction is only for a capture"
+        items = cards.items_from_lists(args)
+        if items is None:
+            return False, "texts, kinds and notes must be lists of the same length"
+        sentence = (ctx.translation or {}).get("target_text") or ctx.utterance
+        ok, reason = cards.check_extraction({"items": items, "why": why}, source_text=sentence,
+                                            granularity=ctx.granularity,
+                                            already_proposed=ctx.extraction is not None)
+        return (True, "card only: nothing is saved until the user chooses") if ok else (False, reason)
+
+    if tool == "ask_meaning":
+        if ctx.task not in ("capture", "guard_check"):
+            return False, "ask_meaning is only for a capture"
+        ok, reason = cards.check_meaning(args, granularity=ctx.granularity, direction=ctx.direction,
+                                         already_asked=ctx.meanings is not None)
+        return (True, "card only: the user picks the meaning") if ok else (False, reason)
 
     if tool == "update_today_review":
         add = _int(args.get("add_entry_id"))

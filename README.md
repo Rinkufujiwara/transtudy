@@ -77,6 +77,8 @@ The translation never waits for an LLM. Gemini is called only for decisions: 2 c
 | `save_entry(source_text, note)` | capture | insert only; the text must equal the user's input; translation filled by the server |
 | `bump_lookup_count(entry_id)` | capture | +1 only, only ids returned by the search; 3+ = weak |
 | `request_tutor_review(entry_id, reason)` | capture | hand over a word that just became weak, once |
+| `propose_extraction(texts, kinds, notes)` | capture | sentences only: up to 3 things to learn, shown as a card; saves nothing (the user ticks what to keep) |
+| `ask_meaning(meanings)` | capture | a word with several meanings: shown as a card; changes nothing (the user picks one) |
 | `update_today_review(add, drop, why)` | tutor | add the server's candidate; drop one word on the list; max 7 |
 | `set_today_review(entry_ids, why)` | tutor | new-day rebuild only, 1–7 ids from the server's candidates |
 | `record_result(entry_id, remembered, requeue, keep_in_today)` | tutor | score fields only; must match the user's answer; requeue once |
@@ -93,6 +95,8 @@ No agent has a delete, settings or code-execution tool. Deleting is a human acti
 | Policy-as-code | `policy.yaml` lists each agent's tools and limits. ADK `before_tool_callback` checks **every** call; violations are not executed and are logged as `blocked`. | LLM06, ASI02 |
 | Argument checks | Saved text must equal the input; no save before search; counts only for search results; scores must match the answer; examples only for server-chosen words, no `<` `>` `://`, never overwritten. | ASI01, ASI06 |
 | Limited agent-to-agent handoff | Only a word that just became weak, once, plain-text reason ≤120 chars; the Tutor may add only the server's candidate, once per run, max 7 words. | ASI01, ASI10 |
+| A2UI-style cards | Agents describe cards as JSON from a fixed catalog; the app draws them with `textContent`; every button is checked by the server. Extracted text must be in the input sentence. | LLM05, ASI01 |
+| Human approval | `policy.yaml` `approval_required`: dropping a word from today's review on a hand-off waits for the user's approval (logged as `held`, then `approve`). | ASI10, LLM06 |
 | Least privilege | Tool table above. Translation API key restricted to the Translation API. | LLM06, ASI03 |
 | Secrets | Keys only in `.env` (git-ignored). The Translation key is sent in the `X-Goog-Api-Key` header, never in a URL; httpx INFO logs are off. | ASI03 |
 | Output handling | All user text, translations and agent text are rendered with `textContent`, never `innerHTML`. | LLM05 |

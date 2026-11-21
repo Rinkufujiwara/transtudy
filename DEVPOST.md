@@ -12,7 +12,7 @@ Translation apps help in the moment, but their history just scrolls away; vocabu
 ## Architecture and agent flow
 - Browser (vanilla JS) → FastAPI. Voice is streamed over a WebSocket to the **Gemini Live API** for live transcription; the **Cloud Translation API** translates immediately (no LLM wait). If Live fails, a 16 kHz WAV goes to **Gemini** for transcription.
 - **ADK root agent** `transtudy_coordinator` (a BaseAgent without an LLM) routes each job to one of two **Gemini** agents:
-  - **Capture Agent** — tools `find_similar_entries`, `save_entry`, `bump_lookup_count`, `request_tutor_review`. It decides whether a lookup is new, the same, or a similar variant ("Hola, ¿cómo estás?" = "¿Cómo estás?"), saves or counts it, and on the 3rd lookup hands the new weak word to the Tutor.
+  - **Capture Agent** — tools `find_similar_entries`, `save_entry`, `bump_lookup_count`, `request_tutor_review`, `propose_extraction`, `ask_meaning` (the last two only show a card). It decides whether a lookup is new, the same, or a similar variant ("Hola, ¿cómo estás?" = "¿Cómo estás?"), saves or counts it, and on the 3rd lookup hands the new weak word to the Tutor.
   - **Tutor Agent** — tools `update_today_review`, `set_today_review`, `record_result`, `get_example_candidates`, `save_example`. In the background it writes an example sentence when useful and decides today's review list (max 7 words: which word to drop for the new one, and why). In lessons it decides whether a card comes back and whether a word stays on today's list.
 - Gemini calls are kept minimal: 2 per text lookup, 1 per lesson answer, 1 per background review; write tools end the turn with `skip_summarization`.
 
@@ -20,6 +20,8 @@ Translation apps help in the moment, but their history just scrolls away; vocabu
 - **Prompt injection**: user text is wrapped in `<user_utterance>` (7 data tags in total) and treated as data; inputs containing tag names are rejected; translation is done by a non-LLM API.
 - **Policy-as-code**: `policy.yaml` lists each agent's tools and limits; ADK `before_tool_callback` checks every call and blocks violations before they run (e.g. saved text must equal the input, counts only for search results, examples only for server-chosen words with no links or tags, max 7 words in today's review, one handoff per lookup).
 - **Least privilege**: no agent can delete, change settings or run code; deleting is a human-only action with a confirm dialog.
+- **A2UI-style cards**: agents describe cards as JSON from a fixed catalog (what to learn from a sentence, which meaning of a word, a proposed change); the app draws them with textContent and the server checks every button. Extracted text must be in the input sentence.
+- **Human approval** (`policy.yaml` `approval_required`): when the Tutor wants to drop a word from today's review on a hand-off, the guard holds the call until the user approves it on a card.
 - **Audit log**: every tool call (allowed or blocked, with reason) is in `logs/audit.jsonl` and in the in-app Agent log.
 - **Proof**: a red-team script sends 16 hijacked-agent tool calls to the real guard — 16/16 blocked; a stage script sends a fooled Gemini's requests to the running app — 2 blocked, the normal one allowed.
 - GDPR: audio is never stored, no location; silent recordings are never sent to Gemini.

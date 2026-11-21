@@ -11,6 +11,8 @@ agents:
       - save_entry             # insert only, never overwrite
       - bump_lookup_count      # lookup_count + 1 only
       - request_tutor_review   # hand a word that just became weak to the Tutor
+      - propose_extraction     # sentences only: what to learn from it, shown as a card; saves nothing
+      - ask_meaning            # a word with several meanings: the user picks one on a card
   tutor_agent:
     description: Writes example sentences and keeps today's review list.
     tools:
@@ -19,6 +21,12 @@ agents:
       - record_result          # lesson score fields only
       - get_example_candidates # read only, server-chosen words
       - save_example           # fill an EMPTY example field only
+
+# These calls pass the guard, then WAIT for the user's approval on a card (A2UI style).
+# Applied to a hand-off (a word that just became weak); a list of argument names means
+# "when any of them is set".
+approval_required:
+  update_today_review: [drop_entry_id]   # dropping a word from today's review needs a yes
 
 # No agent has a delete, settings or code-execution tool.
 # Deleting is a human-only action (confirm dialog -> DELETE /api/entries/{id}).
@@ -53,3 +61,4 @@ data_tags:
   - today_review
   - review_candidate
   - review_candidates
+  - learning_sentence
